@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import cvxpy
+import numpy as np
 
 '''
 ## Example bisection code (MATLAB)
@@ -137,3 +138,56 @@ def _P(l, k, n):
         for q in xrange(0, k, 1):
             P = P * ((l-q)*I + Mn)
     return np.matrix(P)
+
+def sat(v, u_max):
+    return np.clip(v, -u_max, u_max)
+
+''' State Space Simulator '''
+def simulate(A, B, C, D, regulator_func, s, T, umax=None, x0=0):
+    #intitialize y, u
+    y = np.matrix(np.zeros((C.shape[0],len(T))))
+    u = np.zeros((len(T),np.size(x0,1)))
+    u_sat = np.zeros((len(T),np.size(x0,1)))
+    if type(x0) is int:
+        xt = np.matrix([x0]*len(A)).T
+        print "x0 = \n{}".format(xt)
+    else:
+        xt = x0
+    #print "y.shape = \n",y.shape
+    #print "len(T) = \n",len(T)
+    #print "A.shape = \n",(A).shape
+    #print "xt.shape = \n",(xt).shape
+    #print "B.shape = \n",(B).shape
+    #print "u.shape = \n",u.shape
+    #print "s.shape = \n",s.shape
+    #print "C.T.shape = \n",C.T.shape
+    #print "D.shape = \n",D.shape
+
+    for i, t in enumerate(T):
+        u[[i],:] = regulator_func(y[:,i], s[i], xt)
+
+        if umax is not None:
+            u_sat[[i],:] = sat(u[[i],:], umax)
+        else:
+            u_sat[[i],:] = u[[i],:]
+
+        x_dot = A.dot(xt) + B.dot(u_sat[[i],:])
+        y[:,i] = C.dot(xt) + D.dot(u_sat[[i],:])
+        #print "u[[i],:].shape = \n",u[[i],:].shape
+        #print "xt = \n",xt
+        #print "regulator_func = \n",(regulator_func(y[i], s[i],xt))
+        #print "x_dot = \n",x_dot
+        #print "(C.T).dot(xt) = \n",((C.T).dot(xt)).shape
+        #print " D.dot(u[[i],:]) = \n",(D.dot(u[[i],:])).shape
+        #print "(C.T).dot(xt) + D.dot(u[[i],:]) = \n",((C.T).dot(xt) + D.dot(u[[i],:])).shape
+        #print "y[[i]] = \n",y[[i]]
+        if i < len(T)-1:
+            xt = xt + x_dot*(T[i+1]-T[i])
+    return y, u, u_sat
+
+# example Regulator function
+def exampleRegulator(y, s, x):
+    # fill-in K matrix euation. Below is just a controller matrix for
+    # the Inverted Pendulum pendulum problem
+    K = np.array([-70.7107  ,-37.8345  ,105.5298   ,20.9238])
+    return s-K.dot(x)
