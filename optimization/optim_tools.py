@@ -191,3 +191,7 @@ def exampleRegulator(y, s, x):
     # the Inverted Pendulum pendulum problem
     K = np.array([-70.7107  ,-37.8345  ,105.5298   ,20.9238])
     return s-K.dot(x)
+
+# no controller just forwarding setpoint
+def openLoop(y, s, x):
+    return s
