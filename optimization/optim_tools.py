@@ -127,6 +127,21 @@ def _N(n):
 def _M(n):
     return np.diag([p for p in xrange(0, n, 1)])
 
+### Seite 35; (4.6)
+def _D(v, n):
+    return np.diag([v**x for x in range(1, n+1)])
+
+def _D_inv(v, n):
+    return np.diag([v**-x for x in range(1, n+1)])
+
+def _H(k, n):
+    H = np.zeros((n, n))
+    if k<n:
+        H[k-1, k-1] = 1
+    else:
+        print "k in H Matrix was {} but shape of H is {}".format(k, H.shape)
+    return H
+    
 ### Seite 55; (4.64)
 def _P(l, k, n):
     I = np.eye(n)
@@ -195,3 +210,8 @@ def exampleRegulator(y, s, x):
 # no controller just forwarding setpoint
 def openLoop(y, s, x):
     return s
+
+''' Steuerungsnormalform aus python control '''
+# Flipping matrixes to fit Adamy definition
+def reverse_x_order(T):
+    return np.flipud(np.fliplr(T))
