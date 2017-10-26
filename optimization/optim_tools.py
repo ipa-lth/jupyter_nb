@@ -136,10 +136,11 @@ def _D_inv(v, n):
 
 def _H(k, n):
     H = np.zeros((n, n))
-    if k<n:
-        H[k-1, k-1] = 1
+    if k>n or k<=0:
+        print "k = {}, smaller 0 and bigger {} is not really defined!".format(k, n-1)
+        #raise ArithmeticError("k = {}, k smaller 0 and bigger n = {} is not defined".format(k, n))
     else:
-        print "k in H Matrix was {} but shape of H is {}".format(k, H.shape)
+        H[k-1, k-1] = 1
     return H
     
 ### Seite 55; (4.64)
