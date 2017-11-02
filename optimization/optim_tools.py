@@ -68,14 +68,14 @@ variables: array of variables in problems
 parameter:
 
 Note: make sure solution with l is infeasible, with u is optimal
-Example: [[o_Q, o_z0, o_z1], o_g] = bisect(
+Example: [[o_Q, o_z0, o_z1], o_g] = bisect_max(
                                         0, 2,
                                         prob, g,
                                         [Q, z0, z1],
                                         solver=cvxpy.SCS,
                                         verbose=False)
 '''
-def bisect(l, u, problem, parameter, variables,
+def bisect_max(l, u, problem, parameter, variables,
            bisection_tol=1e-3, solver=cvxpy.CVXOPT, verbose=False):
 
     # cross check bound
@@ -117,6 +117,67 @@ def bisect(l, u, problem, parameter, variables,
             u = parameter.value
     return [variables_opt, objval_opt]
 
+''' Bisection function
+Tries to find the min value of parameter of the given feasibility problem by bisection
+
+
+l: lower bound with optimal solution
+u: upper bound with infeasable solution
+bisection_tol: bisection tolerance
+sol: solver for problem
+problem: cvxpy Problem
+variables: array of variables in problems
+parameter:
+
+Note: make sure solution with l is infeasible, with u is optimal
+Example: [[o_Q, o_z0, o_z1], o_g] = bisect_min(
+                                        0, 2,
+                                        prob, g,
+                                        [Q, z0, z1],
+                                        solver=cvxpy.SCS,
+                                        verbose=False)
+'''
+def bisect_min(l, u, problem, parameter, variables,
+           bisection_tol=1e-3, solver=cvxpy.CVXOPT, verbose=False):
+
+    # cross check bound
+    if (u < l):
+        #print "upperBound < lowerBound"
+        raise ValueError("upperBound({}) < lowerBound({})".format(u, l))
+
+    # check validity solution of l is optimal, solution of u is infeasible
+    parameter.value = l
+    problem.solve(solver=solver)
+    lStatus = problem.status
+
+    parameter.value = u
+    problem.solve(solver=solver)
+    uStatus = problem.status
+
+    if not ('optimal' in uStatus and 'optimal' not in lStatus):
+        #print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
+        raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
+
+    variables_opt = [None] * len(variables)
+    while u - l >= bisection_tol:
+        parameter.value = (l + u) / 2.0
+        ## solve the feasibility problem
+        problem.solve(solver=solver)
+        if verbose:
+            print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, problem.status)
+
+        if 'optimal' in problem.status:
+            u = parameter.value
+            # update Variables
+            for i in range(len(variables)):
+                variables_opt[i] = variables[i].value
+            #a_opt = a.value
+            #b_opt = b.value
+            # update Parameters
+            objval_opt = parameter.value
+        else:
+            l = parameter.value
+    return [variables_opt, objval_opt]
 
 ''' Helper functions'''
 ### Seite 37 (im Text zwischen (4.12) und (4.13))
