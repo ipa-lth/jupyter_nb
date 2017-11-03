@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import cvxpy
 import numpy as np
+from numpy import linalg as LA
+
 
 '''
 ## Example bisection code (MATLAB)
@@ -277,3 +279,37 @@ def openLoop(y, s, x):
 # Flipping matrixes to fit Adamy definition
 def reverse_x_order(T):
     return np.flipud(np.fliplr(T))
+
+def get_Steuerungsnormalform(A, b, c, d):
+    #https://www.eit.hs-karlsruhe.de/mesysto/teil-a-zeitkontinuierliche-signale-und-systeme/darstellung-von-systemen-im-zustandsraum/transformation-auf-eine-bestimmte-darstellungsform/transformation-einer-zustandsgleichung-in-regelungsnormalform.html
+
+    # Image(url = "https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_7_HQ.png")
+
+
+    # Berechnung der inversen Steuerbarkeitsmatrix
+    n = A.shape[0]
+    Q = b #
+    for i in range(1, n):
+        Q = np.hstack([Q, LA.matrix_power(A,i)*b])
+    Q_inv = LA.inv(Q)
+
+    #Zeilenvektor t_1.T entspricht der letzten Zeile der inversen Steuerbarkeitsmatrix
+    #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Formel_10_3_51_HQ.png")
+
+    t1 = Q_inv[-1,:]
+
+    # Berechnung der Transformationsmatrix 
+    #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_8_HQ.png")
+    T = t1
+    for i in range(1, n):
+        T = np.vstack([T, t1*LA.matrix_power(A,i)])
+
+    #Bestimmung der Zustandsraumdarstellung in Regelungsnormalform 
+    #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_9_HQ.png")
+    #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_10_HQ.png")
+
+    A0 = T*A*LA.inv(T)
+    b0 = T*b
+    c0 = (c.T * LA.inv(T)).T
+
+    return (A0, b0, c0, d), Q
