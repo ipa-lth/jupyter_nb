@@ -192,10 +192,12 @@ def _M(n):
 
 ### Seite 35; (4.6)
 def _D(v, n):
-    return np.diag([v**x for x in range(1, n+1)])
+    return np.diag([v**x for x in range(n, 0, -1)])
 
 def _D_inv(v, n):
-    return np.diag([v**-x for x in range(1, n+1)])
+    return np.diag([v**-x for x in range(n, 0, -1)])
+
+assert(np.allclose(_D_inv(0.123, 15), LA.inv(_D(0.123, 15))))
 
 def _H(k, n):
     H = np.zeros((n, n))
