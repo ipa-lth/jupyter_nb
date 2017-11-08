@@ -282,6 +282,9 @@ def openLoop(y, s, x):
 def reverse_x_order(T):
     return np.flipud(np.fliplr(T))
 
+'''
+Returns transformed A, b, c, d and Transformation-Matrix T (x_trans = T*x) and Steuerbarkeitsmatrix Q
+'''
 def get_Steuerungsnormalform(A, b, c, d):
     #https://www.eit.hs-karlsruhe.de/mesysto/teil-a-zeitkontinuierliche-signale-und-systeme/darstellung-von-systemen-im-zustandsraum/transformation-auf-eine-bestimmte-darstellungsform/transformation-einer-zustandsgleichung-in-regelungsnormalform.html
 
@@ -314,4 +317,4 @@ def get_Steuerungsnormalform(A, b, c, d):
     b0 = T*b
     c0 = (c.T * LA.inv(T)).T
 
-    return (A0, b0, c0, d), Q
+    return (A0, b0, c0, d), T, Q
