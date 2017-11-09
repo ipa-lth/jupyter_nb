@@ -191,9 +191,11 @@ def _M(n):
     return np.diag([p for p in xrange(0, n, 1)])
 
 ### Seite 35; (4.6)
+# D = diag(v^n, ... v^2, v)
 def _D(v, n):
     return np.diag([v**x for x in range(n, 0, -1)])
 
+# D^-1 = (diag(v^n, ... v^2, v))^-1 = diag(v^-n, ..., v^-2, v^-1)
 def _D_inv(v, n):
     return np.diag([v**-x for x in range(n, 0, -1)])
 
