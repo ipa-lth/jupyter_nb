@@ -120,7 +120,7 @@ def bisect_max(l, u, problem, parameter, variables,
     problem.solve(solver=solver, **kwargs_solver)
     uStatus = problem.status
 
-    if not ('optimal' in lStatus and 'optimal' not in uStatus):
+    if not ('optimal' in lStatus and 'infeasible' in uStatus):
         #print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
         raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
 
@@ -132,7 +132,11 @@ def bisect_max(l, u, problem, parameter, variables,
         if bisect_verbose:
             print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, problem.status)
 
-        if 'optimal' in problem.status:
+        if 'infeasible' in problem.status:
+            u = parameter.value
+        else:
+            while 'inaccurate' in problem.status:
+                print "Warning: optimal_inaccurate hit"
             l = parameter.value
             # update Variables
             for i in range(len(variables)):
@@ -141,8 +145,6 @@ def bisect_max(l, u, problem, parameter, variables,
             #b_opt = b.value
             # update Parameters
             objval_opt = parameter.value
-        else:
-            u = parameter.value
     return [variables_opt, objval_opt]
 
 ''' Bisection function
