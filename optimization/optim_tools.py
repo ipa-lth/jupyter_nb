@@ -81,7 +81,7 @@ Example: [[o_Q, o_z0, o_z1], o_g] = bisect_max(
 Note2: If upper bound is None, the optimization tries to find it by doubling the value until it is not feasible any more. lower bound is shifted if problem is found feasible, however. Initial u is l+1.0
 '''
 def bisect_max(l, u, problem, parameter, variables,
-           bisection_tol=1e-3, solver=cvxpy.CVXOPT, verbose=False):
+           bisection_tol=1e-3, solver=cvxpy.CVXOPT, bisect_verbose=False, **kwargs_solver):
 
     if (u is not None):
         # cross check bound
@@ -92,49 +92,32 @@ def bisect_max(l, u, problem, parameter, variables,
     elif (u is None) and (l is not None):
         # First iteration
         u = l + 1.0
-        print "processing upper bound: {}".format(u)
+        if bisect_verbose:
+            print "processing upper bound: {}".format(u)
         parameter.value = u
-        problem.solve(solver=solver)
+        problem.solve(solver=solver, **kwargs_solver)
         uStatus = problem.status
         
         while 'optimal' in uStatus:
             if u >= l: # shift upper bound if found feasible, this condition is always true
                 l = u
             u = 2.0*u
-            print "processing upper bound: {}".format(u)
+            if bisect_verbose:
+                print "processing upper bound: {}".format(u)
             parameter.value = u
-            problem.solve(solver=solver)
+            problem.solve(solver=solver, **kwargs_solver)
             uStatus = problem.status
         print 'found bounds: [{}-{}]'.format(l, u)
-
-    #elif (u is not None) and (l is None)
-    #    # First iteration
-    #    l = u - 1.0
-    #    parameter.value = l
-    #    problem.solve(solver=solver)
-    #    lStatus = problem.status
-    #    
-    #    while not 'optimal' is in lStatus:
-    #        if l <= u: # shift lower bound if found not feasible, this condition is always true
-    #            u = l
-    #        if l>0:
-    #            l = -2.0*l
-    #        else:
-    #            l = 2.0*l
-    #        parameter.value = l
-    #        problem.solve(solver=solver)
-    #        lStatus = problem.status
-    #elif (u is None) and (l is None):
     else:
         raise ValueError("Not implemented")
     
     # check validity solution of l is optimal, solution of u is infeasible
     parameter.value = l
-    problem.solve(solver=solver)
+    problem.solve(solver=solver, **kwargs_solver)
     lStatus = problem.status
 
     parameter.value = u
-    problem.solve(solver=solver)
+    problem.solve(solver=solver, **kwargs_solver)
     uStatus = problem.status
 
     if not ('optimal' in lStatus and 'optimal' not in uStatus):
@@ -145,8 +128,8 @@ def bisect_max(l, u, problem, parameter, variables,
     while u - l >= bisection_tol:
         parameter.value = (l + u) / 2.0
         ## solve the feasibility problem
-        problem.solve(solver=solver)
-        if verbose:
+        problem.solve(solver=solver, **kwargs_solver)
+        if bisect_verbose:
             print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, problem.status)
 
         if 'optimal' in problem.status:
