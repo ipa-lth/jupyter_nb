@@ -99,8 +99,8 @@ def bisect_max(l, u, problem, parameter, variables,
         uStatus = problem.status
         
         while 'optimal' in uStatus:
-            if u >= l: # shift upper bound if found feasible, this condition is always true
-                l = u
+            #if u >= l: # shift upper bound if found feasible, this condition is always true
+                #l = u
             u = 2.0*u
             if bisect_verbose:
                 print "processing upper bound: {}".format(u)
@@ -125,6 +125,8 @@ def bisect_max(l, u, problem, parameter, variables,
         raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
 
     variables_opt = [None] * len(variables)
+    
+    temp_iters = kwargs_solver['max_iters']
     while u - l >= bisection_tol:
         parameter.value = (l + u) / 2.0
         ## solve the feasibility problem
@@ -134,17 +136,24 @@ def bisect_max(l, u, problem, parameter, variables,
 
         if 'infeasible' in problem.status:
             u = parameter.value
+            kwargs_solver['max_iters'] = temp_iters
+        elif 'inaccurate' in problem.status:
+                kwargs_solver['max_iters'] += kwargs_solver['max_iters']
+                if bisect_verbose:
+                    print "increasing iterations ({}) to ensure optimality".format(kwargs_solver['max_iters'])
         else:
-            while 'inaccurate' in problem.status:
-                print "Warning: optimal_inaccurate hit"
             l = parameter.value
             # update Variables
             for i in range(len(variables)):
                 variables_opt[i] = variables[i].value
-            #a_opt = a.value
-            #b_opt = b.value
             # update Parameters
             objval_opt = parameter.value
+            kwargs_solver['max_iters'] = temp_iters
+
+    # Solve problem again for last feasible value (To ensure solved problem in prob instance at the end)
+    parameter.value = objval_opt
+    problem.solve(solver=solver, **kwargs_solver)
+
     return [variables_opt, objval_opt]
 
 ''' Bisection function
