@@ -136,7 +136,7 @@ def bisect_max(l, u, problem, parameter, variables,
 
         if 'infeasible' in problem.status:
             u = parameter.value
-            kwargs_solver['max_iters'] = temp_iters
+            #kwargs_solver['max_iters'] = temp_iters
         elif 'inaccurate' in problem.status:
                 kwargs_solver['max_iters'] += kwargs_solver['max_iters']
                 if bisect_verbose:
@@ -148,7 +148,7 @@ def bisect_max(l, u, problem, parameter, variables,
                 variables_opt[i] = variables[i].value
             # update Parameters
             objval_opt = parameter.value
-            kwargs_solver['max_iters'] = temp_iters
+            #kwargs_solver['max_iters'] = temp_iters # Do not reset iterations if extended
 
     # Solve problem again for last feasible value (To ensure solved problem in prob instance at the end)
     parameter.value = objval_opt
