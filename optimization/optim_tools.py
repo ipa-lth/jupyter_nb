@@ -4,6 +4,23 @@ import numpy as np
 from numpy import linalg as LA
 
 
+def accurate_solve(problem, solver, **kwargs_solver):
+    try:
+        problem.solve(solver=solver, **kwargs_solver)
+    except:
+        print "error"
+        pass
+    while problem.status not in ["infeasible", "unbounded", "optimal"]:
+        if 'max_iters' in kwargs_solver:
+            kwargs_solver['max_iters'] += kwargs_solver['max_iters']
+        else:
+            kwargs_solver['max_iters'] = 5000
+        
+        print problem.status,": ",kwargs_solver['max_iters'], "->", problem.value
+        problem.solve(solver=solver, **kwargs_solver)
+    return problem
+
+
 '''
 ## Example bisection code (MATLAB)
 ## https://see.stanford.edu/materials/lsocoee364a/hw6sol.pdf (p.3)
