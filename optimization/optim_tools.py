@@ -7,17 +7,22 @@ from numpy import linalg as LA
 def accurate_solve(problem, solver, **kwargs_solver):
     try:
         problem.solve(solver=solver, **kwargs_solver)
-    except:
-        print "error"
+    except Exception, e:
+        print "Caught Exception: {}".format(str(e))
         pass
+    
     while problem.status not in ["infeasible", "unbounded", "optimal"]:
-        if 'max_iters' in kwargs_solver:
-            kwargs_solver['max_iters'] += kwargs_solver['max_iters']
+        if solver is not cvxpy.MOSEK:
+            if 'max_iters' in kwargs_solver:
+                kwargs_solver['max_iters'] += kwargs_solver['max_iters']
+            else:
+                kwargs_solver['max_iters'] = 5000
+            print "Status with {} iterations: {}\nExtending to {} iterations".format(kwargs_solver['max_iters']/2, problem.value, kwargs_solver['max_iters'])
+
+            problem.solve(solver=solver, **kwargs_solver)
         else:
-            kwargs_solver['max_iters'] = 5000
-        
-        print problem.status,": ",kwargs_solver['max_iters'], "->", problem.value
-        problem.solve(solver=solver, **kwargs_solver)
+            print "'{}' Solutions with MOSEK not implemented".format(problem.status)
+            break
     return problem
 
 
@@ -100,6 +105,10 @@ Note2: If upper bound is None, the optimization tries to find it by doubling the
 def bisect_max(l, u, problem, parameter, variables,
            bisection_tol=1e-3, solver=cvxpy.CVXOPT, bisect_verbose=False, **kwargs_solver):
 
+    if solver is cvxpy.SCS:
+        print "Setting 'Warmstart' option to True"
+        kwargs_solver['warm_start'] = True
+            
     if (u is not None):
         # cross check bound
         if (u < l):
@@ -112,7 +121,7 @@ def bisect_max(l, u, problem, parameter, variables,
         if bisect_verbose:
             print "processing upper bound: {}".format(u)
         parameter.value = u
-        problem.solve(solver=solver, **kwargs_solver)
+        problem = accurate_solve(problem, solver, **kwargs_solver)
         uStatus = problem.status
         
         while 'optimal' in uStatus:
@@ -122,7 +131,7 @@ def bisect_max(l, u, problem, parameter, variables,
             if bisect_verbose:
                 print "processing upper bound: {}".format(u)
             parameter.value = u
-            problem.solve(solver=solver, **kwargs_solver)
+            problem = accurate_solve(problem, solver, **kwargs_solver)
             uStatus = problem.status
         print 'found bounds: [{}-{}]'.format(l, u)
     else:
@@ -130,11 +139,11 @@ def bisect_max(l, u, problem, parameter, variables,
     
     # check validity solution of l is optimal, solution of u is infeasible
     parameter.value = l
-    problem.solve(solver=solver, **kwargs_solver)
+    problem = accurate_solve(problem, solver, **kwargs_solver)
     lStatus = problem.status
 
     parameter.value = u
-    problem.solve(solver=solver, **kwargs_solver)
+    problem = accurate_solve(problem, solver, **kwargs_solver)
     uStatus = problem.status
 
     if not ('optimal' in lStatus and 'infeasible' in uStatus):
@@ -143,33 +152,30 @@ def bisect_max(l, u, problem, parameter, variables,
 
     variables_opt = [None] * len(variables)
     
-    temp_iters = kwargs_solver['max_iters']
+    #temp_iters = kwargs_solver['max_iters']
     while u - l >= bisection_tol:
         parameter.value = (l + u) / 2.0
         ## solve the feasibility problem
-        problem.solve(solver=solver, **kwargs_solver)
+        problem = accurate_solve(problem, solver, **kwargs_solver)
         if bisect_verbose:
             print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, problem.status)
 
-        if 'infeasible' in problem.status:
+        if problem.status in ["infeasible", "unbounded"]:
             u = parameter.value
             #kwargs_solver['max_iters'] = temp_iters
-        elif 'inaccurate' in problem.status:
-                kwargs_solver['max_iters'] += kwargs_solver['max_iters']
-                if bisect_verbose:
-                    print "increasing iterations ({}) to ensure optimality".format(kwargs_solver['max_iters'])
-        else:
+        elif 'optimal' in problem.status:
             l = parameter.value
             # update Variables
             for i in range(len(variables)):
                 variables_opt[i] = variables[i].value
             # update Parameters
             objval_opt = parameter.value
-            #kwargs_solver['max_iters'] = temp_iters # Do not reset iterations if extended
+        else:
+            raise ValueError("Problem may not bisectionable. Found Intermediate solution of '{}'".format(problem.status))
 
     # Solve problem again for last feasible value (To ensure solved problem in prob instance at the end)
     parameter.value = objval_opt
-    problem.solve(solver=solver, **kwargs_solver)
+    problem = accurate_solve(problem, solver, **kwargs_solver)
 
     return [variables_opt, objval_opt]
 
