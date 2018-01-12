@@ -17,7 +17,7 @@ def accurate_solve(problem, solver, **kwargs_solver):
                 kwargs_solver['max_iters'] += kwargs_solver['max_iters']
             else:
                 kwargs_solver['max_iters'] = 5000
-            print "Status with {} iterations: {}\nExtending to {} iterations".format(kwargs_solver['max_iters']/2, problem.value, kwargs_solver['max_iters'])
+            print "Status with {} iterations: {}\nExtending to {} iterations".format(kwargs_solver['max_iters']/2, problem.status, kwargs_solver['max_iters'])
 
             problem.solve(solver=solver, **kwargs_solver)
         else:
