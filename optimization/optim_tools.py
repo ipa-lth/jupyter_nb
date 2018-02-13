@@ -25,6 +25,32 @@ def accurate_solve(problem, solver, **kwargs_solver):
             break
     return problem
 
+def checked_solve(problem, solver, **kwargs_solver):
+    try:
+        problem.solve(solver=solver, **kwargs_solver)
+    except Exception, e:
+        print "Caught Exception: {}".format(str(e))
+        pass
+    
+    repeat_solve = False
+    # Check constraints
+    if 'inaccurate' in problem.status:
+        
+        if 'optimal' in problem.status:
+            print "Check for constraints to be fullfilled"
+            print "Max violation:", max([c.violation for c in problem.constraints])
+            repeat_solve = True
+            
+        elif 'unbounded' in problem.status:
+            print "Status is unbounded! Possible ERROR in objective?"
+            print "Max violation:", max([c.violation for c in problem.constraints])
+            
+        else: # 'infeasible' in problem.status:
+            print "Check for constraints to be NOT fullfulled"
+            print "Max violation:", max([c.violation for c in problem.constraints])
+            repeat_solve = True
+
+    return problem
 
 '''
 ## Example bisection code (MATLAB)
@@ -121,7 +147,7 @@ def bisect_max(l, u, problem, parameter, variables,
         if bisect_verbose:
             print "processing upper bound: {}".format(u)
         parameter.value = u
-        problem = accurate_solve(problem, solver, **kwargs_solver)
+        problem = checked_solve(problem, solver, **kwargs_solver)
         uStatus = problem.status
         
         while 'optimal' in uStatus:
@@ -131,7 +157,7 @@ def bisect_max(l, u, problem, parameter, variables,
             if bisect_verbose:
                 print "processing upper bound: {}".format(u)
             parameter.value = u
-            problem = accurate_solve(problem, solver, **kwargs_solver)
+            problem = checked_solve(problem, solver, **kwargs_solver)
             uStatus = problem.status
         print 'found bounds: [{}-{}]'.format(l, u)
     else:
@@ -139,11 +165,11 @@ def bisect_max(l, u, problem, parameter, variables,
     
     # check validity solution of l is optimal, solution of u is infeasible
     parameter.value = l
-    problem = accurate_solve(problem, solver, **kwargs_solver)
+    problem = checked_solve(problem, solver, **kwargs_solver)
     lStatus = problem.status
 
     parameter.value = u
-    problem = accurate_solve(problem, solver, **kwargs_solver)
+    problem = checked_solve(problem, solver, **kwargs_solver)
     uStatus = problem.status
 
     if not ('optimal' in lStatus and 'infeasible' in uStatus):
@@ -156,11 +182,11 @@ def bisect_max(l, u, problem, parameter, variables,
     while u - l >= bisection_tol:
         parameter.value = (l + u) / 2.0
         ## solve the feasibility problem
-        problem = accurate_solve(problem, solver, **kwargs_solver)
+        problem = checked_solve(problem, solver, **kwargs_solver)
         if bisect_verbose:
             print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, problem.status)
 
-        if problem.status in ["infeasible", "unbounded"]:
+        if 'infeasible' in problem.status:
             u = parameter.value
             #kwargs_solver['max_iters'] = temp_iters
         elif 'optimal' in problem.status:
@@ -175,7 +201,7 @@ def bisect_max(l, u, problem, parameter, variables,
 
     # Solve problem again for last feasible value (To ensure solved problem in prob instance at the end)
     parameter.value = objval_opt
-    problem = accurate_solve(problem, solver, **kwargs_solver)
+    problem = checked_solve(problem, solver, **kwargs_solver)
 
     return [variables_opt, objval_opt]
 
