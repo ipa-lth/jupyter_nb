@@ -159,7 +159,8 @@ def bisect_max(l, u, problem, parameter, variables,
             parameter.value = u
             problem = checked_solve(problem, solver, **kwargs_solver)
             uStatus = problem.status
-        print 'found bounds: [{}-{}]'.format(l, u)
+        if bisect_verbose:
+            print 'found bounds: [{}-{}]'.format(l, u)
     else:
         raise ValueError("Not implemented")
     
