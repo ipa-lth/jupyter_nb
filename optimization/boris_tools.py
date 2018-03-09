@@ -86,6 +86,31 @@ def k_explizit_Ab2(roots_p1, roots_pmin, pmin, A, b):
 # == So here are a few utility functions for multiplying scalars and vectors.
 #
 
+# return real part of a vector
+def real_vector(vector):
+    return map(lambda x: x.real, vector)
+
+# return imaginary part of a vector
+def imag_vector(vector):
+    return map(lambda x: x.imag, vector)
+
+def plot_moving_poles(A, b, c, d, k_0, k_1, pmin=0.1):
+    poles = []
+    for p in np.arange(1, pmin, -0.001):
+        sys_closed = con.ss(A-b*(k_0+1.0/p*k_1).T, b, c, d)
+        pole = con.matlab.pole(sys_closed)
+        poles.append(pole)
+    
+    # another approach to plot
+    real_part = real_vector(poles)
+    imag_part = imag_vector(poles)
+
+    # Display a window with a plot of real, imag
+    plt.plot(real_part, imag_part, 'b-')
+    plt.plot(real_part[0], imag_part[0], 'b*')
+    plt.plot(real_part[-1], imag_part[-1], 'rx')
+    plt.show
+    
 def narf():
     # a scalar times a vector returns a vector
     def scale_vector(scale, vector):
@@ -101,13 +126,7 @@ def narf():
             result += vector1[i] * vector2[i]
         return result
 
-    # return real part of a vector
-    def real_vector(vector):
-        return map(lambda x: x.real, vector)
 
-    # return imaginary part of a vector
-    def imag_vector(vector):
-        return map(lambda x: x.imag, vector)
 
     from cmath import sin, cos, exp, pi, log, polar, rect, phase, sqrt
     # Generate numbers around the complex unit circle.
