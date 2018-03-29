@@ -21,7 +21,7 @@ def k_explizit_a(roots_p1, roots_pmin, pmin, a):
 
 # Do canonical form first (costy)
 def k_explizit_Ab(roots_p1, roots_pmin, pmin, A, b):
-    (A_R, _, _, _), _, _ = optim_tools.get_Steuerungsnormalform(A, b, b, 0)
+    (A_R, _, _, _), _, _ = optim_tools.get_Steuerungsnormalform(A, b, b, 0) # second b should be c but values involking c are dropped
     a = -A_R[-1][:].T
     n = len(roots_p1)
     
@@ -45,7 +45,7 @@ def k_explizit_Ab2(roots_p1, roots_pmin, pmin, A, b):
     # This seems to work as expected
     k1 = 1.0/(1.0-1.0/pmin) * (r0 - r1)
     k0 = r0 - k1
-    return np.matrix(k0).T, np.matrix(k1).T
+    return k0.T, k1.T
 
 #%timeit k_explizit_Ab2([1,2,4], [2,4,8], 0.1, A, b)
 
@@ -96,7 +96,7 @@ def imag_vector(vector):
 
 def plot_moving_poles(A, b, c, d, k_0, k_1, pmin=0.1):
     poles = []
-    for p in np.arange(1, pmin, -0.001):
+    for p in np.arange(1, pmin-0.001, -0.001):
         sys_closed = con.ss(A-b*(k_0+1.0/p*k_1).T, b, c, d)
         pole = con.matlab.pole(sys_closed)
         poles.append(pole)

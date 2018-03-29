@@ -384,7 +384,7 @@ def get_Steuerungsnormalform(A, b, c, d):
     n = A.shape[0]
     Q = b #
     for i in range(1, n):
-        Q = np.hstack([Q, LA.matrix_power(A,i)*b])
+        Q = np.hstack([Q, LA.matrix_power(A,i).dot(b)])
     Q_inv = LA.inv(Q)
 
     #Zeilenvektor t_1.T entspricht der letzten Zeile der inversen Steuerbarkeitsmatrix
@@ -396,15 +396,15 @@ def get_Steuerungsnormalform(A, b, c, d):
     #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_8_HQ.png")
     T = t1
     for i in range(1, n):
-        T = np.vstack([T, t1*LA.matrix_power(A,i)])
+        T = np.vstack([T, t1.dot(LA.matrix_power(A,i))])
 
     #Bestimmung der Zustandsraumdarstellung in Regelungsnormalform 
     #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_9_HQ.png")
     #Image(url="https://www.eit.hs-karlsruhe.de/mesysto/fileadmin/images/Skript_SYS_V_10_0_2/Kapitel_10_3/Grafik_10_3_10_HQ.png")
 
-    A0 = T*A*LA.inv(T)
-    b0 = T*b
-    c0 = (c.T * LA.inv(T)).T
+    A0 = T.dot(A).dot(LA.inv(T))
+    b0 = T.dot(b)
+    c0 = (c.T.dot(LA.inv(T))).T
 
     return (A0, b0, c0, d), T, Q
 
