@@ -2,7 +2,8 @@
 import cvxpy
 import numpy as np
 from numpy import linalg as LA
-
+import collections
+import math
 
 def accurate_solve(problem, solver, **kwargs_solver):
     try:
@@ -313,7 +314,7 @@ def sat(v, u_max):
     return np.clip(v, -u_max, u_max)
 
 ''' State Space Simulator '''
-def simulate(A, B, C, D, regulator_func, s, T, umax=None, x0=0):
+def simulate(A, B, C, D, regulator_func, s, T, delay=None, umax=None, x0=0):
     #intitialize y, u
     y = np.matrix(np.zeros((C.shape[0],len(T))))
     u = np.zeros((len(T),np.size(x0,1)))
@@ -323,18 +324,20 @@ def simulate(A, B, C, D, regulator_func, s, T, umax=None, x0=0):
         print "x0 = \n{}".format(xt)
     else:
         xt = x0
-    #print "y.shape = \n",y.shape
-    #print "len(T) = \n",len(T)
-    #print "A.shape = \n",(A).shape
-    #print "xt.shape = \n",(xt).shape
-    #print "B.shape = \n",(B).shape
-    #print "u.shape = \n",u.shape
-    #print "s.shape = \n",s.shape
-    #print "C.T.shape = \n",C.T.shape
-    #print "D.shape = \n",D.shape
 
+    if delay:
+        x_queue = collections.deque(maxlen=int(math.ceil(delay/(T[1]-T[0]))))
+        
     for i, t in enumerate(T):
-        u[[i],:] = regulator_func(y[:,i], s[i], xt)
+        if delay:
+            x_queue.append(xt)
+            if len(x_queue) == int(math.ceil(delay/(T[1]-T[0]))):
+                x_delay = x_queue[0]
+            else:
+                x_delay = x0
+        else:
+            x_delay = xt
+        u[[i],:] = regulator_func(y[:,i], s[i], x_delay)
 
         if umax is not None:
             u_sat[[i],:] = sat(u[[i],:], umax)
@@ -343,14 +346,7 @@ def simulate(A, B, C, D, regulator_func, s, T, umax=None, x0=0):
 
         x_dot = A.dot(xt) + B.dot(u_sat[[i],:])
         y[:,i] = C.dot(xt) + D.dot(u_sat[[i],:])
-        #print "u[[i],:].shape = \n",u[[i],:].shape
-        #print "xt = \n",xt
-        #print "regulator_func = \n",(regulator_func(y[i], s[i],xt))
-        #print "x_dot = \n",x_dot
-        #print "(C.T).dot(xt) = \n",((C.T).dot(xt)).shape
-        #print " D.dot(u[[i],:]) = \n",(D.dot(u[[i],:])).shape
-        #print "(C.T).dot(xt) + D.dot(u[[i],:]) = \n",((C.T).dot(xt) + D.dot(u[[i],:])).shape
-        #print "y[[i]] = \n",y[[i]]
+
         if i < len(T)-1:
             xt = xt + x_dot*(T[i+1]-T[i])
     return y, u, u_sat
