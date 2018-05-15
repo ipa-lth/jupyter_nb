@@ -31,7 +31,7 @@ def checked_solve(problem, solver, **kwargs_solver):
         problem.solve(solver=solver, **kwargs_solver)
     except Exception, e:
         print "Caught Exception: {}".format(str(e))
-        pass
+        return problem, False
     
     repeat_solve = False
     # Check constraints
@@ -51,7 +51,7 @@ def checked_solve(problem, solver, **kwargs_solver):
             print "Max violation:", max([c.violation for c in problem.constraints])
             repeat_solve = True
 
-    return problem
+    return problem, True
 
 '''
 ## Example bisection code (MATLAB)
@@ -148,8 +148,11 @@ def bisect_max(l, u, problem, parameter, variables,
         if bisect_verbose:
             print "processing upper bound: {}".format(u)
         parameter.value = u
-        problem = checked_solve(problem, solver, **kwargs_solver)
-        uStatus = problem.status
+        problem, ok = checked_solve(problem, solver, **kwargs_solver)
+        if ok:
+            uStatus = problem.status
+        else:
+            uStatus = 'unknown'
         
         while 'optimal' in uStatus:
             #if u >= l: # shift upper bound if found feasible, this condition is always true
@@ -158,8 +161,11 @@ def bisect_max(l, u, problem, parameter, variables,
             if bisect_verbose:
                 print "processing upper bound: {}".format(u)
             parameter.value = u
-            problem = checked_solve(problem, solver, **kwargs_solver)
-            uStatus = problem.status
+            problem, ok = checked_solve(problem, solver, **kwargs_solver)
+            if ok:
+                uStatus = problem.status
+            else:
+                uStatus = 'unknown'
         if bisect_verbose:
             print 'found bounds: [{}-{}]'.format(l, u)
     else:
@@ -167,12 +173,18 @@ def bisect_max(l, u, problem, parameter, variables,
     
     # check validity solution of l is optimal, solution of u is infeasible
     parameter.value = l
-    problem = checked_solve(problem, solver, **kwargs_solver)
-    lStatus = problem.status
+    problem, ok = checked_solve(problem, solver, **kwargs_solver)
+    if ok:
+        lStatus = problem.status
+    else:
+        lStatus = 'unknown'
 
     parameter.value = u
-    problem = checked_solve(problem, solver, **kwargs_solver)
-    uStatus = problem.status
+    problem, ok = checked_solve(problem, solver, **kwargs_solver)
+    if ok:
+        uStatus = problem.status
+    else:
+        uStatus = 'unknown'
 
     if not ('optimal' in lStatus and 'infeasible' in uStatus):
         #print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
@@ -184,14 +196,18 @@ def bisect_max(l, u, problem, parameter, variables,
     while u - l >= bisection_tol:
         parameter.value = (l + u) / 2.0
         ## solve the feasibility problem
-        problem = checked_solve(problem, solver, **kwargs_solver)
-        if bisect_verbose:
-            print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, problem.status)
-
-        if 'infeasible' in problem.status:
+        problem, ok = checked_solve(problem, solver, **kwargs_solver)
+        if ok:
+            status = problem.status
+            if bisect_verbose:
+                print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, status)
+        else:
+            status = 'unknown'
+        
+        if status in ['infeasible', 'unknown'] :
             u = parameter.value
             #kwargs_solver['max_iters'] = temp_iters
-        elif 'optimal' in problem.status:
+        elif 'optimal' in status:
             l = parameter.value
             # update Variables
             for i in range(len(variables)):
@@ -199,11 +215,11 @@ def bisect_max(l, u, problem, parameter, variables,
             # update Parameters
             objval_opt = parameter.value
         else:
-            raise ValueError("Problem may not bisectionable. Found Intermediate solution of '{}'".format(problem.status))
+            raise ValueError("Problem may not bisectionable. Found Intermediate solution of '{}'".format(status))
 
     # Solve problem again for last feasible value (To ensure solved problem in prob instance at the end)
     parameter.value = objval_opt
-    problem = checked_solve(problem, solver, **kwargs_solver)
+    problem, ok = checked_solve(problem, solver, **kwargs_solver)
 
     return [variables_opt, objval_opt]
 
@@ -337,6 +353,7 @@ def simulate(A, B, C, D, regulator_func, s, T, delay=None, umax=None, x0=0):
                 x_delay = x0
         else:
             x_delay = xt
+        
         u[[i],:] = regulator_func(y[:,i], s[i], x_delay)
 
         if umax is not None:
@@ -360,6 +377,7 @@ def exampleRegulator(y, s, x):
 
 # no controller just forwarding setpoint
 def openLoop(y, s, x):
+    #print s
     return s
 
 ''' Steuerungsnormalform aus python control '''
