@@ -30,7 +30,7 @@ def checked_solve(problem, solver, **kwargs_solver):
     try:
         problem.solve(solver=solver, **kwargs_solver)
     except Exception, e:
-        print "Caught Exception: {}".format(str(e))
+        print " -----> Exception: {}".format(str(e))
         return problem, False
     
     repeat_solve = False
@@ -186,7 +186,7 @@ def bisect_max(l, u, problem, parameter, variables,
     else:
         uStatus = 'unknown'
 
-    if not ('optimal' in lStatus and 'infeasible' in uStatus):
+    if not ('optimal' in lStatus and uStatus in ['infeasible', 'unknown']):
         #print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
         raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
 
@@ -199,11 +199,12 @@ def bisect_max(l, u, problem, parameter, variables,
         problem, ok = checked_solve(problem, solver, **kwargs_solver)
         if ok:
             status = problem.status
-            if bisect_verbose:
-                print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, status)
         else:
             status = 'unknown'
-        
+
+        if bisect_verbose:
+            print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, status)
+            
         if status in ['infeasible', 'unknown'] :
             u = parameter.value
             #kwargs_solver['max_iters'] = temp_iters
