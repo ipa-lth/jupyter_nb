@@ -26,32 +26,63 @@ def accurate_solve(problem, solver, **kwargs_solver):
             break
     return problem
 
-def checked_solve(problem, solver, **kwargs_solver):
-    try:
-        problem.solve(solver=solver, **kwargs_solver)
-    except Exception, e:
-        print " -----> Exception: {}".format(str(e))
-        return problem, False
-    
-    repeat_solve = False
-    # Check constraints
-    if 'inaccurate' in problem.status:
-        
-        if 'optimal' in problem.status:
-            print "Violation for optimal_inaccurate"
-            print "Max violation:", max([c.violation for c in problem.constraints])
-            repeat_solve = True
-            
-        elif 'unbounded' in problem.status:
-            print "Status is unbounded! Possible ERROR in objective?"
-            print "Max violation:", max([c.violation for c in problem.constraints])
-            
-        else: # 'infeasible' in problem.status:
-            print "Violation for infeasible_inaccurate"
-            print "Max violation:", max([c.violation for c in problem.constraints])
-            repeat_solve = True
+def checked_solve(problem, solvers, **kwargs_solver):
+    repeat_solve = True
+    #legacy check
+    if type(solvers) is list:
+        for solver, kwargs in solvers:
+            if repeat_solve == True:
+                #print "Solving with {} with {}".format(solver, *list(kwargs))
+                try:
+                    problem.solve(solver=solver, **kwargs)
+                    repeat_solve = False
+                except Exception, e:
+                    print " -----> Exception by {}: {}".format(solver, str(e))
+                    repeat_solve = True
 
-    return problem, True
+                # Check constraints
+                if 'inaccurate' in problem.status:
+                    if 'optimal' in problem.status:
+                        print "Violation for optimal_inaccurate"
+                        print "Max violation:", max([c.violation for c in problem.constraints])
+
+                    elif 'unbounded' in problem.status:
+                        print "Status is unbounded! Possible ERROR in objective?"
+                        print "Max violation:", max([c.violation for c in problem.constraints])
+
+                    else: # 'infeasible' in problem.status:
+                        print "Violation for infeasible_inaccurate"
+                        print "Max violation:", max([c.violation for c in problem.constraints])
+                        
+                    repeat_solve = False
+        return problem, not repeat_solve
+    else:
+        #legacy solve
+        try:
+            problem.solve(solver=solvers, **kwargs_solver)
+        except Exception, e:
+            print " -----> Exception: {}".format(str(e))
+            return problem, False
+
+        repeat_solve = False
+        # Check constraints
+        if 'inaccurate' in problem.status:
+
+            if 'optimal' in problem.status:
+                print "Violation for optimal_inaccurate"
+                print "Max violation:", max([c.violation for c in problem.constraints])
+                repeat_solve = True
+
+            elif 'unbounded' in problem.status:
+                print "Status is unbounded! Possible ERROR in objective?"
+                print "Max violation:", max([c.violation for c in problem.constraints])
+
+            else: # 'infeasible' in problem.status:
+                print "Violation for infeasible_inaccurate"
+                print "Max violation:", max([c.violation for c in problem.constraints])
+                repeat_solve = True
+
+        return problem, True
 
 '''
 ## Example bisection code (MATLAB)
@@ -225,6 +256,97 @@ def bisect_max(l, u, problem, parameter, variables,
 
     return [variables_opt, objval_opt]
 
+def bisect_max2(l, u, problem, parameter, variables,
+           bisection_tol=1e-3, solvers=[cvxpy.CVXOPT, {}], bisect_verbose=False):
+          
+    if (u is not None):
+        # cross check bound
+        if (u < l):
+            #print "upperBound < lowerBound"
+            raise ValueError("upperBound({}) < lowerBound({})".format(u, l))
+
+    elif (u is None) and (l is not None):
+        # First iteration
+        u = l + 1.0
+        if bisect_verbose:
+            print "processing upper bound: {}".format(u)
+        parameter.value = u
+        problem, ok = checked_solve(problem, solvers)
+        if ok:
+            uStatus = problem.status
+        else:
+            uStatus = 'unknown'
+        
+        while 'optimal' in uStatus:
+            #if u >= l: # shift upper bound if found feasible, this condition is always true
+                #l = u
+            l = u
+            u = 2.0*u
+            if bisect_verbose:
+                print "processing upper bound: {}".format(u)
+            parameter.value = u
+            problem, ok = checked_solve(problem, solvers)
+            if ok:
+                uStatus = problem.status
+            else:
+                uStatus = 'unknown'
+        if bisect_verbose:
+            print 'found bounds: [{}-{}]'.format(l, u)
+    else:
+        raise ValueError("Not implemented")
+    
+    # check validity solution of l is optimal, solution of u is infeasible
+    parameter.value = l
+    problem, ok = checked_solve(problem, solvers)
+    if ok:
+        lStatus = problem.status
+    else:
+        lStatus = 'unknown'
+
+    parameter.value = u
+    problem, ok = checked_solve(problem, solvers)
+    if ok:
+        uStatus = problem.status
+    else:
+        uStatus = 'unknown'
+
+    if not ('optimal' in lStatus and uStatus in ['infeasible', 'unknown']):
+        #print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
+        raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
+
+    variables_opt = [None] * len(variables)
+    
+    #temp_iters = kwargs_solver['max_iters']
+    while u - l >= bisection_tol:
+        parameter.value = (l + u) / 2.0
+        ## solve the feasibility problem
+        problem, ok = checked_solve(problem, solvers)
+        if ok:
+            status = problem.status
+        else:
+            status = 'unknown'
+
+        if bisect_verbose:
+            print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, status)
+            
+        if status in ['infeasible', 'unknown'] :
+            u = parameter.value
+            #kwargs_solver['max_iters'] = temp_iters
+        elif 'optimal' in status:
+            l = parameter.value
+            # update Variables
+            for i in range(len(variables)):
+                variables_opt[i] = variables[i].value
+            # update Parameters
+            objval_opt = parameter.value
+        else:
+            raise ValueError("Problem may not bisectionable. Found Intermediate solution of '{}'".format(status))
+
+    # Solve problem again for last feasible value (To ensure solved problem in prob instance at the end)
+    parameter.value = objval_opt
+    problem, ok = checked_solve(problem, solvers)
+
+    return [variables_opt, objval_opt]
 ''' Bisection function
 Tries to find the min value of parameter of the given feasibility problem by bisection
 
