@@ -38,7 +38,7 @@ def checked_solve(problem, solver, **kwargs_solver):
     if 'inaccurate' in problem.status:
         
         if 'optimal' in problem.status:
-            print "Check for constraints to be fullfilled"
+            print "Violation for optimal_inaccurate"
             print "Max violation:", max([c.violation for c in problem.constraints])
             repeat_solve = True
             
@@ -47,7 +47,7 @@ def checked_solve(problem, solver, **kwargs_solver):
             print "Max violation:", max([c.violation for c in problem.constraints])
             
         else: # 'infeasible' in problem.status:
-            print "Check for constraints to be NOT fullfulled"
+            print "Violation for infeasible_inaccurate"
             print "Max violation:", max([c.violation for c in problem.constraints])
             repeat_solve = True
 
@@ -157,6 +157,7 @@ def bisect_max(l, u, problem, parameter, variables,
         while 'optimal' in uStatus:
             #if u >= l: # shift upper bound if found feasible, this condition is always true
                 #l = u
+            l = u
             u = 2.0*u
             if bisect_verbose:
                 print "processing upper bound: {}".format(u)
