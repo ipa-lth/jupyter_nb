@@ -39,22 +39,22 @@ def checked_solve(problem, solvers, **kwargs_solver):
                 except Exception, e:
                     print " -----> Exception by {}: {}".format(solver, str(e))
                     repeat_solve = True
+                else:
+                    # Check constraints
+                    if 'inaccurate' in problem.status:
+                        if 'optimal' in problem.status:
+                            print "Violation for optimal_inaccurate"
+                            print "Max violation:", max([c.violation for c in problem.constraints])
 
-                # Check constraints
-                if 'inaccurate' in problem.status:
-                    if 'optimal' in problem.status:
-                        print "Violation for optimal_inaccurate"
-                        print "Max violation:", max([c.violation for c in problem.constraints])
+                        elif 'unbounded' in problem.status:
+                            print "Status is unbounded! Possible ERROR in objective?"
+                            print "Max violation:", max([c.violation for c in problem.constraints])
 
-                    elif 'unbounded' in problem.status:
-                        print "Status is unbounded! Possible ERROR in objective?"
-                        print "Max violation:", max([c.violation for c in problem.constraints])
+                        else: # 'infeasible' in problem.status:
+                            print "Violation for infeasible_inaccurate"
+                            print "Max violation:", max([c.violation for c in problem.constraints])
 
-                    else: # 'infeasible' in problem.status:
-                        print "Violation for infeasible_inaccurate"
-                        print "Max violation:", max([c.violation for c in problem.constraints])
-                        
-                    repeat_solve = False
+                        repeat_solve = False
         return problem, not repeat_solve
     else:
         #legacy solve
