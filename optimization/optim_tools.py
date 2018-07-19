@@ -237,7 +237,7 @@ def bisect_max(l, u, problem, parameter, variables,
         if bisect_verbose:
             print "Range: {}-{}; parameter {} -> {}".format(l, u, parameter.value, status)
             
-        if status in ['infeasible', 'unknown'] :
+        if 'infeasible' in status or 'unknown' in status:
             u = parameter.value
             #kwargs_solver['max_iters'] = temp_iters
         elif 'optimal' in status:
