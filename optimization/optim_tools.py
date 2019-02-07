@@ -309,13 +309,19 @@ def bisect_max2(l, u, problem, parameter, variables,
         uStatus = problem.status
     else:
         uStatus = 'unknown'
-
-    if not ('optimal' in lStatus and uStatus in ['infeasible', 'unknown']):
-        #print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
-        raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
-
+            
     variables_opt = [None] * len(variables)
     
+    if not ('optimal' in lStatus and uStatus in ['infeasible', 'unknown']):
+        print "UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus)
+        #raise ValueError("UpperBound({})={}, LowerBound({})={}".format(u, uStatus, l, lStatus))
+        parameter.value = u
+        problem, ok = checked_solve(problem, solvers)
+        for i in range(len(variables)):
+                variables_opt[i] = variables[i].value
+                
+        return [variables_opt, u]
+
     #temp_iters = kwargs_solver['max_iters']
     while u - l >= bisection_tol:
         parameter.value = (l + u) / 2.0
@@ -454,41 +460,101 @@ def sat(v, u_max):
     return np.clip(v, -u_max, u_max)
 
 ''' State Space Simulator '''
-def simulate(A, B, C, D, regulator_func, s, T, delay=None, umax=None, x0=0):
-    #intitialize y, u
-    y = np.matrix(np.zeros((C.shape[0],len(T))))
-    u = np.zeros((len(T),np.size(x0,1)))
-    u_sat = np.zeros((len(T),np.size(x0,1)))
+def simulate(A, B, C, D, regulator_func, s, T, T_controller=None, delay_u=None, delay_y=None, umax=None, x0=0):
     if type(x0) is int:
         xt = np.matrix([x0]*len(A)).T
-        print "x0 = \n{}".format(xt)
+        print "Setting initial value vector to {}".format(xt.T)
     else:
         xt = x0
+        
+    #intitialize y, u
+    y = np.matrix(np.zeros((C.shape[0],len(T))))
+    u = np.zeros((len(T),np.size(xt,1)))
+    u_sat = np.zeros((len(T),np.size(xt,1)))
 
-    if delay:
-        s_queue = collections.deque(maxlen=int(math.ceil(delay/(T[1]-T[0]))))
+    if T_controller:
+        ratio = int(T_controller/(T[1]-T[0]))
+        print "ratio of controller invokation with time sequence T:", ratio
+    else:
+        ratio = 1
+
+    if delay_y:
+        y_queue = collections.deque(maxlen=int(math.ceil(delay_y/(T[1]-T[0]))))
+    if delay_u:
+        u_queue = collections.deque(maxlen=int(math.ceil(delay_u/(T[1]-T[0]))))
         
     for i, t in enumerate(T):
-        if delay:
-            s_queue.append(s[i])
-            if len(s_queue) == int(math.ceil(delay/(T[1]-T[0]))):
-                s_delay = s_queue[0]
+        
+        # Delay y
+        #      ___
+        #     |   |
+        # y-->| T |->y_d
+        #     |___|
+        #        
+        if delay_y:
+            y_queue.append(y[:,i-1])
+            if len(y_queue) == int(math.ceil(delay_y/(T[1]-T[0]))):
+                y_delay = y_queue[0]
             else:
-                s_delay = 0
+                y_delay = 0
         else:
-            s_delay = s[i]
+            y_delay = y[:,i-1]
         
-        u[[i],:] = regulator_func(y[:,i-1], s_delay, xt)
+        #if T_controller:
+        #    print i
+        #    print i%ratio==0
+        
+        # If sampling time of the controller is an integer of the overall sampling time sequence T
+        if i%ratio == 0:
+            # Invoke Controller
+            #      _____________
+            #     |    -        |
+            # s-->|-->o---> C --|->u
+            #     |   ^         |
+            #     |___|_________|
+            #         y_d       
+            u[[i],:] = regulator_func(y_delay, s[i], xt)
+        else:
+            u[[i],:] = u[[i-1],:]
 
+        # Delay u
+        #      ___
+        #     |   |
+        # u-->| T |->u_d
+        #     |___|
+        # 
+        if delay_u:
+            u_queue.append(u[[i],:])
+            if len(u_queue) == int(math.ceil(delay_u/(T[1]-T[0]))):
+                u_delay = u_queue[0]
+            else:
+                u_delay = 0
+        else:
+            u_delay = u[[i],:]
+        
+        # Saturate u_d
+        #        ___
+        #       |  _|
+        # u_d-->|_/ |->u_s
+        #       |___|
+        #
         if umax is not None:
-            u_sat[[i],:] = sat(u[[i],:], umax)
+            u_sat[[i],:] = sat(u_delay, umax)
         else:
-            u_sat[[i],:] = u[[i],:]
+            u_sat[[i],:] = u_delay
 
+            
+        # System evolution
+        #        _____________
+        #       |.            |
+        # u_s-->|x = Ax+B u_s |-->y
+        #       |y = Cx+D u_s |
+        #       |_____________|
+        #
         x_dot = A.dot(xt) + B.dot(u_sat[[i],:])
-        
         y[:,i] = C.dot(xt) + D.dot(u_sat[[i],:])
 
+        # Next x = x_dot * dT
         if i < len(T)-1:
             xt = xt + x_dot*(T[i+1]-T[i])
     return y, u, u_sat
